@@ -1,0 +1,235 @@
+  <!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>مولّد قطع البازل</title>
+<style>
+:root{--bg:#0e1a3a;--panel:#162551;--ink:#f3f0e6;--mute:#a9b4d6;--gold:#e3b341;--line:#2b3b72;--on-gold:#1a1405;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef1f8;--panel:#fff;--ink:#14204a;--mute:#56608a;--gold:#b8860b;--line:#ccd3ea;--on-gold:#fff}}
+:root[data-theme="light"]{--bg:#eef1f8;--panel:#fff;--ink:#14204a;--mute:#56608a;--gold:#b8860b;--line:#ccd3ea;--on-gold:#fff}
+:root[data-theme="dark"]{--bg:#0e1a3a;--panel:#162551;--ink:#f3f0e6;--mute:#a9b4d6;--gold:#e3b341;--line:#2b3b72;--on-gold:#1a1405}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Cairo","Segoe UI",Tahoma,sans-serif;line-height:1.7}
+main{max-width:980px;margin:0 auto;padding:18px 14px 40px}
+h1{font-size:1.6rem;margin:6px 0 2px}
+.sub{color:var(--mute);margin:0 0 16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+label{display:flex;flex-direction:column;font-size:.85rem;color:var(--mute);gap:4px}
+input[type=number],select{width:92px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+select{width:auto}
+input:disabled,button:disabled{opacity:.45;cursor:not-allowed}
+button,.file{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:9px 14px}
+button:hover:not(:disabled),.file:hover{border-color:var(--gold)}
+button.main{background:var(--gold);color:var(--on-gold);border-color:var(--gold);font-weight:700}
+button:focus-visible,.file:focus-within,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.file input{position:absolute;opacity:0;width:1px;height:1px}
+.file{position:relative;display:inline-block}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{padding:6px 11px;font-size:.88rem}
+.stage{overflow-x:auto;text-align:center}
+#prev{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff}
+.empty{padding:40px 10px;color:var(--mute);text-align:center}
+.info{color:var(--mute);font-size:.9rem;margin-top:8px}
+#sheet{display:none}
+@media print{
+ @page{margin:10mm}
+ body{background:#fff}
+ main{display:none}
+ #sheet{display:block}
+ #sheet.pieces{display:flex;flex-wrap:wrap;gap:4mm;align-items:flex-start}
+ #sheet canvas,#sheet img{display:block;max-width:100%;height:auto;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<main>
+<h1>مولّد قطع البازل</h1>
+<p class="sub">حمّل صورة، اختر عدد القطع وشكلها، ثم اطبعها بقصّ جاهز. اختر «مربعات» إن وجدتَ قص أشكال المنشار صعبًا.</p>
+
+<section class="panel">
+ <div class="row">
+  <label class="file"><span>اختيار صورة</span><input type="file" id="f" accept="image/*"></label>
+  <button id="demo" type="button">صورة تجريبية</button>
+  <label>شكل القطع
+   <select id="shape">
+    <option value="jig">منشار (كالمحلات)</option>
+    <option value="sq">مربعات (قص سهل)</option>
+   </select>
+  </label>
+  <label>الأعمدة<input type="number" id="cols" value="6" min="2" max="20"></label>
+  <label>الصفوف<input type="number" id="rows" value="4" min="2" max="20"></label>
+  <button id="shuf" type="button">تغيير شكل القطع</button>
+ </div>
+ <div class="chips" style="margin-top:10px" id="presets">
+  <button type="button" data-c="4" data-r="3">12 قطعة</button>
+  <button type="button" data-c="6" data-r="4">24 قطعة</button>
+  <button type="button" data-c="8" data-r="6">48 قطعة</button>
+  <button type="button" data-c="10" data-r="7">70 قطعة</button>
+  <button type="button" data-c="14" data-r="10">140 قطعة</button>
+ </div>
+ <p class="info" id="sqnote" hidden>في وضع المربعات يُحسب عدد الصفوف تلقائيًا من عدد الأعمدة ليكون كل جزء مربعًا تقريبًا، فغيّر الأعمدة للتحكم في حجم القطع.</p>
+</section>
+
+<section class="panel">
+ <div class="stage"><div class="empty" id="empty">لم تُحمَّل صورة بعد. اختر صورة أو جرّب الصورة التجريبية.</div><canvas id="prev" hidden></canvas></div>
+ <div class="info" id="info"></div>
+</section>
+
+<section class="panel">
+ <div class="row">
+  <label>عرض الصورة المطبوعة (سم)<input type="number" id="cm" value="18" min="5" max="60" step="0.5"></label>
+  <button class="main" type="button" id="pA">طباعة الصورة كاملة بخطوط القص</button>
+  <button class="main" type="button" id="pB">طباعة القطع منفصلة</button>
+ </div>
+ <div class="row" style="margin-top:10px">
+  <label>لون الخلفية خلف القطع<input type="color" id="bg" value="#ffffff" style="width:70px;height:38px;padding:2px"></label>
+  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tr">خلفية شفافة</label>
+  <label>تباعد القطع (يُظهر اللون بينها)<input type="range" id="gap" min="0" max="30" value="0"></label>
+  <label>لون خطوط القص<input type="color" id="lc" value="#141428" style="width:70px;height:38px;padding:2px"></label>
+  <label>سمك الخطوط<input type="range" id="lw" min="1" max="10" value="3"></label>
+ </div>
+ <div class="row" style="margin-top:10px">
+  <button type="button" id="sA">حفظ الصورة بخطوط القص (PNG)</button>
+  <button type="button" id="sB">حفظ ورقة القطع المنفصلة (PNG)</button>
+ </div>
+ <p class="info">بدون طابعة: احفظ الصورة وخذها إلى مكتبة أو محل طباعة، أو اطبعها من هاتفك عند أي مطبعة.</p>
+ <p class="info">الصورة كاملة: تُلصق على كرتون مقوّى ثم تُقصّ على الخطوط. القطع منفصلة: كل قطعة بشكلها الكامل، تُقصّ على حدّها. للورقة A4 اجعل العرض 19 سم أو أقل، واختر حجم الطباعة «100%».</p>
+ <p class="info">نصيحة للمربعات: استعمل «الصورة كاملة بخطوط القص» مع المسطرة والقاطع (cutter) فتقصّ خطوطًا مستقيمة كلها دفعة واحدة.</p>
+</section>
+</main>
+<div id="sheet"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const C=[[.42,0,.40,.06,.38,.12],[.34,.20,.43,.26,.50,.26],[.57,.26,.66,.20,.62,.12],[.60,.06,.58,0,.66,0]];
+let base=null,W=0,H=0,cols=6,rows=4,cw=0,ch=0,Hs=[],Vs=[],seed=7,sq=false;
+
+function gen(){
+ let s=seed;const r=()=>{s=(s*16807)%2147483647;return s/2147483647};
+ Hs=[];Vs=[];
+ for(let i=0;i<=rows;i++){Hs[i]=[];for(let c=0;c<cols;c++)Hs[i][c]=(i==0||i==rows)?0:(r()<.5?1:-1)}
+ for(let i=0;i<rows;i++){Vs[i]=[];for(let c=0;c<=cols;c++)Vs[i][c]=(c==0||c==cols)?0:(r()<.5?1:-1)}
+}
+function edge(p,x0,y0,x1,y1,sg,s){
+ if(!sg||sq){p.lineTo(x1,y1);return}
+ const dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy),nx=dy/L,ny=-dx/L;
+ const P=(u,v)=>[x0+dx*u+nx*v*s*sg,y0+dy*u+ny*v*s*sg];
+ const a=P(.34,0);p.lineTo(a[0],a[1]);
+ for(const k of C)p.bezierCurveTo(...P(k[0],k[1]),...P(k[2],k[3]),...P(k[4],k[5]));
+ p.lineTo(x1,y1);
+}
+function piecePath(r,c,ox=0,oy=0){
+ const p=new Path2D,x=c*cw+ox,y=r*ch+oy,s=Math.min(cw,ch);
+ p.moveTo(x,y);
+ edge(p,x,y,x+cw,y,Hs[r][c],s);
+ edge(p,x+cw,y,x+cw,y+ch,-Vs[r][c+1],s);
+ edge(p,x+cw,y+ch,x,y+ch,-Hs[r+1][c],s);
+ edge(p,x,y+ch,x,y,Vs[r][c],s);
+ p.closePath();return p;
+}
+function margin(s){return sq?6:Math.ceil(.28*s)+4}
+function lineW(){return Math.max(1.5,W*(+$('lw').value)/2000)}
+function dark(){const h=$('lc').value,v=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return (.299*v[0]+.587*v[1]+.114*v[2])<140}
+function mode(){
+ sq=$('shape').value==='sq';
+ $('rows').disabled=sq;$('shuf').disabled=sq;$('sqnote').hidden=!sq;
+}
+function draw(keep){
+ if(!base)return;
+ mode();
+ cols=Math.min(20,Math.max(2,+$('cols').value||6));
+ if(sq){rows=Math.min(20,Math.max(2,Math.round(cols*H/W)));$('rows').value=rows}
+ else rows=Math.min(20,Math.max(2,+$('rows').value||4));
+ cw=W/cols;ch=H/rows;if(!keep)gen();
+ const cv=$('prev'),gap=Math.round(+$('gap').value/100*Math.min(cw,ch)),pad=Math.round(W*.04);
+ cv.width=W+(cols-1)*gap+2*pad;cv.height=H+(rows-1)*gap+2*pad;cv.hidden=false;$('empty').hidden=true;
+ const x=cv.getContext('2d');
+ if(!$('tr').checked){x.fillStyle=$('bg').value;x.fillRect(0,0,cv.width,cv.height)}
+ x.lineJoin='round';
+ for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+  const ox=pad+c*gap,oy=pad+r*gap,p=piecePath(r,c,ox,oy);
+  if(gap){x.save();x.shadowColor='rgba(0,0,0,.5)';x.shadowBlur=W/120;x.shadowOffsetX=x.shadowOffsetY=W/350;x.fillStyle='#000';x.fill(p);x.restore()}
+  x.save();x.clip(p);x.drawImage(base,ox,oy);x.restore();
+  if(!gap){x.lineWidth=lineW()*2.6;x.strokeStyle=dark()?'rgba(255,255,255,.85)':'rgba(0,0,0,.6)';x.stroke(p)}
+  x.lineWidth=lineW();x.strokeStyle=$('lc').value;x.stroke(p);
+ }
+ $('info').textContent=`${cols*rows} قطعة (${cols} × ${rows})`+(sq?' — قطع مربعة':'');
+}
+function load(src){
+ const im=new Image();
+ im.onload=()=>{
+  const k=Math.min(1,2400/Math.max(im.width,im.height));
+  W=Math.round(im.width*k);H=Math.round(im.height*k);
+  base=document.createElement('canvas');base.width=W;base.height=H;
+  base.getContext('2d').drawImage(im,0,0,W,H);draw();
+ };
+ im.src=src;
+}
+$('f').onchange=e=>{const f=e.target.files[0];if(!f)return;const u=URL.createObjectURL(f);load(u)};
+$('demo').onclick=()=>{
+ const c=document.createElement('canvas');c.width=1200;c.height=800;const x=c.getContext('2d');
+ const g=x.createLinearGradient(0,0,1200,800);g.addColorStop(0,'#10285e');g.addColorStop(1,'#5a2a7a');
+ x.fillStyle=g;x.fillRect(0,0,1200,800);
+ let s=3;const r=()=>{s=(s*16807)%2147483647;return s/2147483647};
+ for(let i=0;i<160;i++){x.fillStyle=`rgba(255,${200+r()*55|0},120,${.4+r()*.6})`;x.beginPath();x.arc(r()*1200,r()*800,1+r()*4,0,7);x.fill()}
+ x.fillStyle='#e3b341';x.beginPath();x.arc(900,220,110,0,7);x.fill();
+ x.fillStyle='#10285e';x.beginPath();x.arc(940,200,100,0,7);x.fill();
+ x.fillStyle='#0a1330';x.beginPath();x.moveTo(0,800);x.lineTo(0,600);x.quadraticCurveTo(300,420,600,620);x.quadraticCurveTo(900,480,1200,640);x.lineTo(1200,800);x.fill();
+ load(c.toDataURL());
+};
+$('shuf').onclick=()=>{seed=Math.floor(Math.random()*1e6)+1;draw()};
+$('shape').onchange=()=>draw();
+$('cols').oninput=$('rows').oninput=()=>draw();
+$('presets').onclick=e=>{const b=e.target.closest('button');if(!b)return;$('cols').value=b.dataset.c;$('rows').value=b.dataset.r;draw()};
+
+$('bg').oninput=$('bg').onchange=$('tr').onchange=$('gap').oninput=$('lc').oninput=$('lc').onchange=$('lw').oninput=()=>draw(true);
+function printSheet(m){
+ if(!base){alert('حمّل صورة أولًا.');return}
+ const cm=Math.max(5,+$('cm').value||18),sh=$('sheet');sh.innerHTML='';
+ sh.style.background=$('tr').checked?'':$('bg').value;sh.style.webkitPrintColorAdjust=sh.style.printColorAdjust='exact';
+ sh.style.padding='0';
+ sh.className=m==='B'?'pieces':'';
+ if(m==='A'){
+  const pv=$('prev'),c=document.createElement('canvas');c.width=pv.width;c.height=pv.height;
+  c.getContext('2d').drawImage(pv,0,0);
+  c.style.width=cm+'cm';sh.appendChild(c);
+ }else{
+  const s=Math.min(cw,ch),mg=margin(s),pw=cw+2*mg,ph=ch+2*mg,k=cm/W;
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+   const cv=document.createElement('canvas');cv.width=Math.ceil(pw);cv.height=Math.ceil(ph);
+   const x=cv.getContext('2d'),p=piecePath(r,c,mg-c*cw,mg-r*ch);
+   x.save();x.clip(p);x.drawImage(base,mg-c*cw,mg-r*ch);x.restore();
+   x.lineJoin='round';x.lineWidth=lineW();x.strokeStyle=$('lc').value;x.stroke(p);
+   cv.style.width=(pw*k)+'cm';sh.appendChild(cv);
+  }
+ }
+ setTimeout(()=>window.print(),150);
+}
+function save(cv,name){
+ cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)},'image/png');
+}
+$('sA').onclick=()=>{if(!base){alert('حمّل صورة أولًا.');return}save($('prev'),'puzzle-lines.png')};
+$('sB').onclick=()=>{
+ if(!base){alert('حمّل صورة أولًا.');return}
+ const s=Math.min(cw,ch),mg=margin(s),pw=Math.ceil(cw+2*mg),ph=Math.ceil(ch+2*mg),g=Math.ceil(s*.1);
+ const sh=document.createElement('canvas');sh.width=cols*(pw+g)+g;sh.height=rows*(ph+g)+g;
+ const y=sh.getContext('2d');if(!$('tr').checked){y.fillStyle=$('bg').value;y.fillRect(0,0,sh.width,sh.height);}
+ for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+  const cv=document.createElement('canvas');cv.width=pw;cv.height=ph;
+  const x=cv.getContext('2d'),p=piecePath(r,c,mg-c*cw,mg-r*ch);
+  x.save();x.clip(p);x.drawImage(base,mg-c*cw,mg-r*ch);x.restore();
+  x.lineJoin='round';x.lineWidth=lineW();x.strokeStyle=$('lc').value;x.stroke(p);
+  y.drawImage(cv,g+c*(pw+g),g+r*(ph+g));
+ }
+ save(sh,'puzzle-pieces.png');
+};
+$('pA').onclick=()=>printSheet('A');
+$('pB').onclick=()=>printSheet('B');
+</script>
+</body>
+</html>
